@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>MiniWiki</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f7f9fc;
+            margin: 0;
+            padding: 0;
+            color: #222;
+        }
+
+        .container {
+            width: 900px;
+            max-width: 90%;
+            margin: 40px auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 38px;
+            margin-bottom: 30px;
+            color: #1a73e8;
+        }
+
+        .search-box {
+            background: white;
+            padding: 25px;
+            border-radius: 14px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        form {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        input[type="text"] {
+            width: 550px;
+            max-width: 100%;
+            padding: 14px 16px;
+            font-size: 16px;
+            border: 1px solid #d0d7de;
+            border-radius: 10px;
+            outline: none;
+            transition: border 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        input[type="text"]:focus {
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.15);
+        }
+
+        button {
+            padding: 14px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 10px;
+            background-color: #1a73e8;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        button:hover {
+            background-color: #155cc0;
+        }
+
+        #suggestions {
+            width: 550px;
+            max-width: 100%;
+            margin: 10px auto 0 auto;
+            text-align: left;
+            background: white;
+            border: 1px solid #d0d7de;
+            border-radius: 10px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+            display: none;
+            overflow: hidden;
+        }
+
+        .suggestion-item {
+            padding: 10px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .suggestion-item:last-child {
+            border-bottom: none;
+        }
+
+        .suggestion-item:hover {
+            background-color: #f3f7ff;
+        }
+
+        .results-header {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #444;
+        }
+
+        .result {
+            background: white;
+            padding: 18px 20px;
+            margin-bottom: 18px;
+            border-radius: 12px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
+        }
+
+        .title {
+            font-size: 22px;
+            font-weight: bold;
+            color: #1a0dab;
+            text-decoration: none;
+        }
+
+        .title:hover {
+            text-decoration: underline;
+        }
+
+        .url {
+            color: #188038;
+            margin: 6px 0;
+            font-size: 14px;
+            word-break: break-word;
+        }
+
+        .score {
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+
+        .snippet {
+            margin-top: 8px;
+            font-size: 15px;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .snippet b {
+            background-color: yellow;
+            padding: 1px 3px;
+            border-radius: 4px;
+        }
+
+        .empty-message {
+            text-align: center;
+            color: #666;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>MiniWiki</h1>
+		<p style="text-align:center; color:gray;">
+		    Searching over 100 indexed Wikipedia pages
+		</p>
+        <div class="search-box">
+            <form action="/search" method="get">
+                <input type="text"
+                       id="searchBox"
+                       name="query"
+                       th:value="${query}"
+                       placeholder="Search here..."
+                       autocomplete="off" />
+                <button type="submit">Search</button>
+            </form>
+
+            <div id="suggestions"></div>
+        </div>
+
+        <div th:if="${query != null and !#strings.isEmpty(query)}" class="results-header">
+            Results for: <strong th:text="${query}"></strong>
+        </div>
+
+        <div th:if="${results != null and !results.isEmpty()}">
+            <div th:each="result : ${results}" class="result">
+                <a class="title"
+                   th:href="${result.page.url}"
+                   th:text="${result.page.title}"
+                   target="_blank"></a>
+
+                <div class="url" th:text="${result.page.url}"></div>
+                <div class="score">Score: <span th:text="${result.score}"></span></div>
+                <div class="snippet" th:utext="${result.snippet}"></div>
+            </div>
+        </div>
+
+        <div th:if="${results != null and results.isEmpty() and query != null and !#strings.isEmpty(query)}" class="empty-message">
+            No results found.
+        </div>
+    </div>
+
+    <script>
+        const searchBox = document.getElementById("searchBox");
+        const suggestionsBox = document.getElementById("suggestions");
+
+        searchBox.addEventListener("input", async function () {
+            const term = searchBox.value.trim();
+
+            if (term.length === 0) {
+                suggestionsBox.style.display = "none";
+                suggestionsBox.innerHTML = "";
+                return;
+            }
+
+            const response = await fetch("/suggest?term=" + encodeURIComponent(term));
+            const suggestions = await response.json();
+
+            suggestionsBox.innerHTML = "";
+
+            if (suggestions.length === 0) {
+                suggestionsBox.style.display = "none";
+                return;
+            }
+
+            suggestions.forEach(word => {
+                const div = document.createElement("div");
+                div.textContent = word;
+                div.className = "suggestion-item";
+
+                div.addEventListener("click", function () {
+                    searchBox.value = word;
+                    suggestionsBox.style.display = "none";
+                });
+
+                suggestionsBox.appendChild(div);
+            });
+
+            suggestionsBox.style.display = "block";
+        });
+
+        document.addEventListener("click", function (event) {
+            if (event.target !== searchBox && !suggestionsBox.contains(event.target)) {
+                suggestionsBox.style.display = "none";
+            }
+        });
+    </script>
+
+	<footer style="text-align:center; margin-top:40px; color:#888;">
+	    Built with Java, Spring Boot, and Jsoup
+	</footer>
+	
+</body>
+</html>
