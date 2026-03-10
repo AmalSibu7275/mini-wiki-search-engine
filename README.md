@@ -38,12 +38,19 @@ The program crawls Wikipedia pages, extracts the text, builds an inverted index,
 src/main/java/com/amal/searchengine
 
 Crawler.java           → Crawls Wikipedia pages
+
 PageFetcher.java       → Downloads HTML pages
+
 PageParser.java        → Extracts page title and text
+
 TextProcessor.java     → Processes text into searchable words
+
 InvertedIndex.java     → Stores word → page mapping
+
 SearchEngine.java      → Handles ranking and search
+
 SearchController.java  → Web controller for search requests
+
 Main.java              → Starts the Spring Boot application
 
 ## Running the Project
